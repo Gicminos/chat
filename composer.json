@@ -1,6 +1,6 @@
 {
-    "name": "musonza/chat",
-    "description": "Chat Package for Laravel 5.4 and up",
+    "name": "gicminos/chat",
+    "description": "Fork of musonza/chat to mantain version 3 in future laravel releases",
     "type": "library",
     "keywords": [
         "laravel",
@@ -14,8 +14,8 @@
     },
     "require-dev": {
         "phpunit/phpunit": "^7.0|^8.0",
-        "orchestra/testbench": "^3.8|^4.0",
-        "orchestra/database": "^3.8|^4.0",
+        "orchestra/testbench": "^4.0|^5.0",
+        "orchestra/database": "^4.0|^5.0",
         "mockery/mockery": "^1.0.0"
     },
     "license": "MIT",
