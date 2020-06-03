@@ -2,7 +2,6 @@
 
 namespace Musonza\Chat\Services;
 
-use Exception;
 use Musonza\Chat\Commanding\CommandBus;
 use Musonza\Chat\Messages\SendMessageCommand;
 use Musonza\Chat\Models\Message;
@@ -14,14 +13,6 @@ class MessageService
 
     protected $type = 'text';
     protected $body;
-    /**
-     * @var CommandBus
-     */
-    protected $commandBus;
-    /**
-     * @var Message
-     */
-    protected $message;
 
     public function __construct(CommandBus $commandBus, Message $message)
     {
@@ -66,7 +57,7 @@ class MessageService
      */
     public function markRead()
     {
-        $this->message->markRead($this->participant);
+        $this->message->markRead($this->user);
     }
 
     /**
@@ -76,7 +67,7 @@ class MessageService
      */
     public function delete()
     {
-        $this->message->trash($this->participant);
+        $this->message->trash($this->user);
     }
 
     /**
@@ -86,41 +77,39 @@ class MessageService
      */
     public function unreadCount()
     {
-        return $this->message->unreadCount($this->participant);
+        return $this->message->unreadCount($this->user);
     }
 
     public function toggleFlag()
     {
-        return $this->message->toggleFlag($this->participant);
+        return $this->message->toggleFlag($this->user);
     }
 
     public function flagged()
     {
-        return $this->message->flagged($this->participant);
+        return $this->message->flagged($this->user);
     }
 
     /**
      * Sends the message.
      *
-     * @throws Exception
-     *
      * @return void
      */
     public function send()
     {
-        if (!$this->sender) {
-            throw new Exception('Message sender has not been set');
+        if (!$this->from) {
+            throw new \Exception('Message sender has not been set');
         }
 
-        if (strlen($this->body) == 0) {
-            throw new Exception('Message body has not been set');
+        if (!$this->body) {
+            throw new \Exception('Message body has not been set');
         }
 
-        if (!$this->recipient) {
-            throw new Exception('Message receiver has not been set');
+        if (!$this->to) {
+            throw new \Exception('Message receiver has not been set');
         }
 
-        $command = new SendMessageCommand($this->recipient, $this->body, $this->sender, $this->type);
+        $command = new SendMessageCommand($this->to, $this->body, $this->from, $this->type);
 
         return $this->commandBus->execute($command);
     }

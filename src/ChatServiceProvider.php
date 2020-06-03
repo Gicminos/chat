@@ -22,10 +22,6 @@ class ChatServiceProvider extends ServiceProvider
     {
         $this->publishMigrations();
         $this->publishConfig();
-
-        if (config('musonza_chat.should_load_routes')) {
-            require __DIR__.'/Http/routes.php';
-        }
     }
 
     /**
@@ -45,8 +41,8 @@ class ChatServiceProvider extends ServiceProvider
      */
     private function registerChat()
     {
-        $this->app->bind('\Musonza\Chat\Chat', function () {
-            return $this->app->make(Chat::class);
+        $this->app->bind('chat', function () {
+            return $this->app->make(\Musonza\Chat\Chat::class);
         });
     }
 

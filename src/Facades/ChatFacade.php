@@ -3,7 +3,6 @@
 namespace Musonza\Chat\Facades;
 
 use Illuminate\Support\Facades\Facade;
-use Musonza\Chat\Chat;
 
 class ChatFacade extends Facade
 {
@@ -15,8 +14,6 @@ class ChatFacade extends Facade
      */
     protected static function getFacadeAccessor()
     {
-        self::clearResolvedInstance(Chat::class);
-
-        return Chat::class;
+        return 'chat';
     }
 }
