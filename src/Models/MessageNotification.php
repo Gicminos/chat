@@ -2,17 +2,16 @@
 
 namespace Musonza\Chat\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Notification;
 use Musonza\Chat\BaseModel;
-use Musonza\Chat\ConfigurationManager;
 
 class MessageNotification extends BaseModel
 {
     use SoftDeletes;
 
-    protected $table = ConfigurationManager::MESSAGE_NOTIFICATIONS_TABLE;
-    protected $fillable = ['messageable_id', 'messageable_type', 'message_id', 'conversation_id'];
+    protected $fillable = ['user_id', 'message_id', 'conversation_id'];
+    protected $table = 'mc_message_notification';
     protected $dates = ['deleted_at'];
 
     /**
@@ -26,11 +25,10 @@ class MessageNotification extends BaseModel
         self::createCustomNotifications($message, $conversation);
     }
 
-    public function unReadNotifications(Model $participant)
+    public function unReadNotifications($user)
     {
         return self::where([
-            ['messageable_id', '=', $participant->getKey()],
-            ['messageable_type', '=', $participant->getMorphClass()],
+            ['user_id', '=', $user->getKey()],
             ['is_seen', '=', 0],
         ])->get();
     }
@@ -39,18 +37,16 @@ class MessageNotification extends BaseModel
     {
         $notification = [];
 
-        foreach ($conversation->participants as $participation) {
-            $is_sender = ($message->participation_id == $participation->id) ? 1 : 0;
+        foreach ($conversation->users as $user) {
+            $is_sender = ($message->user_id == $user->getKey()) ? 1 : 0;
 
             $notification[] = [
-                'messageable_id'   => $participation->messageable_id,
-                'messageable_type' => $participation->messageable_type,
-                'message_id'       => $message->id,
-                'participation_id' => $participation->id,
-                'conversation_id'  => $conversation->id,
-                'is_seen'          => $is_sender,
-                'is_sender'        => $is_sender,
-                'created_at'       => $message->created_at,
+                'user_id'         => $user->getKey(),
+                'message_id'      => $message->id,
+                'conversation_id' => $conversation->id,
+                'is_seen'         => $is_sender,
+                'is_sender'       => $is_sender,
+                'created_at'      => $message->created_at,
             ];
         }
 

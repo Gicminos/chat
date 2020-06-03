@@ -3,49 +3,34 @@
 [![Build Status](https://travis-ci.org/musonza/chat.svg?branch=master)](https://travis-ci.org/musonza/chat)
 [![Downloads](https://poser.pugx.org/musonza/chat/d/total.svg)](https://packagist.org/packages/musonza/chat)
 [![Packagist](https://img.shields.io/packagist/v/musonza/chat.svg)](https://packagist.org/packages/musonza/chat)
-<a href="https://codeclimate.com/github/musonza/chat/maintainability"><img src="https://api.codeclimate.com/v1/badges/85f152eae2a04b25783d/maintainability" /></a>
 ## Chat
 
-Create a Chat application for your multiple Models
+[Demo Application](https://github.com/musonza/chat-demo)
 
-## Table of Contents
-
-<details><summary>Click to expand</summary><p>
+Want to use any Laravel model as Chat participant? Follow this PR https://github.com/musonza/chat/pull/163
 
 - [Introduction](#introduction)
 - [Installation](#installation)
 - [Usage](#usage)
-  - [Adding the ability to participate to a Model](#Adding-the-ability-to-participate-to-a-Model)
-  - [Get participant details](#get-participant-details)
   - [Creating a conversation](#creating-a-conversation)
   - [Get a conversation by Id](#get-a-conversation-by-id)
   - [Update conversation details](#update-conversation-details)
   - [Send a text message](#send-a-text-message)
   - [Send a message of custom type](#send-a-message-of-custom-type)
   - [Get a message by id](#get-a-message-by-id)
-  - [Get message sender](#Get-message-sender)
   - [Mark a message as read](#mark-a-message-as-read)
   - [Mark whole conversation as read](#mark-whole-conversation-as-read)
   - [Unread messages count](#unread-messages-count)
   - [Delete a message](#delete-a-message)
-  - [Cleanup Deleted Messages](#cleanup-deleted-messages)
   - [Clear a conversation](#clear-a-conversation)
-  - [Get participant conversations](#Get-participant-conversations)
-  - [Get a conversation between two participants](#get-a-conversation-between-two-participants)
-  - [Get common conversations among participants](#get-common-conversations-among-participants)
-  - [Remove participants from a conversation](#remove-participants-from-a-conversation)
-  - [Add participants to a conversation](#add-participants-to-a-conversation)
+  - [Get a conversation between two users](#get-a-conversation-between-two-users)
+  - [Get common conversations among users](#get-common-conversations-among-users)
+  - [Remove users from a conversation](#remove-users-from-a-conversation)
+  - [Add users to a conversation](#add-users-to-a-conversation)
   - [Get messages in a conversation](#get-messages-in-a-conversation)
   - [Get recent messages](#get-recent-messages)
-  - [Get participants in a conversation](#get-participants-in-a-conversation)
-  - [Get participation entry for a Model in a conversation](#Get-participation-entry-for-a-Model-in-a-conversation)
-  - [Update participation settings](#Update-participation-settings)
-  - [Data Transformers](#Data-Transformers)
+  - [Get users in a conversation](#get-users-in-a-conversation)
 - [License](#license)
-
-</details>
-
-Checkout a simple [Demo Application](https://github.com/musonza/chat-demo)
 
 ## Introduction
 
@@ -59,6 +44,24 @@ From the command line, run:
 composer require musonza/chat
 ```
 
+Add the service provider to your `config\app.php` the providers array
+
+```
+Musonza\Chat\ChatServiceProvider::class
+```
+
+Add the Facade to your aliases:
+
+```
+'Chat' => Musonza\Chat\Facades\ChatFacade::class to your `config\app.php`
+```
+
+The class is bound to the ioC as chat
+
+```
+$chat = App::make('chat');
+```
+
 Publish the assets:
 
 ```
@@ -69,7 +72,37 @@ This will publish database migrations and a configuration file `musonza_chat.php
 
 ## Configuration
 
-See `musonza_chat.php` for configuration
+```php
+return [
+    'user_model' => 'App\User',
+
+    /**
+     * If not set, the package will use getKeyName() on the user_model specified above
+     */
+    'user_model_primary_key' => null,
+
+    /*
+     * This will allow you to broadcast an event when a message is sent
+     * Example:
+     * Channel: mc-chat-conversation.2,
+     * Event: Musonza\Chat\Eventing\MessageWasSent
+     */
+    'broadcasts' => false,
+
+    /**
+     * The event to fire when a message is sent
+     * See Musonza\Chat\Eventing\MessageWasSent if you want to customize.
+     */
+    'sent_message_event' => 'Musonza\Chat\Eventing\MessageWasSent',
+
+    /**
+     * Automatically convert conversations with more than two users to public
+     */
+    'make_three_or_more_users_public' => true,
+];
+
+
+```
 
 Run the migrations:
 
@@ -79,80 +112,27 @@ php artisan migrate
 
 ## Usage
 
-You can mix Models as participants. For instance you can have `Parents`, `Students` and `Professors` models communicating
+By default the package assumes you have a User model in the App namespace.
 
-#### Adding the ability to participate to a Model 
-
-Add the `Musonza\Chat\Traits\Messageable` trait to any Model you want to participate in Conversations
-For example, let's say we want out `Bot` model to chat with other Models:
-
-```php
-
-use Illuminate\Database\Eloquent\Model;
-use Musonza\Chat\Traits\Messageable;
-
-class Bot extends Model
-{
-    use Messageable;
-}
-```
-
-#### Get participant details
-
-Since we allow Models with data that differ in structure to chat, we may want a uniform way to
-represent the participant details in a uniform way.
-
-You can get the details as follows:
-
-```php
-$participantModel->getParticipantDetails();
-```
-Assuming you have a column `name` for your model, this returns a default array `['name' => 'column_value']`
-You can however, customize this for your needs by adding an Eloquent Accessor that returns an array
- with as much as you need to your model as follows:
-
-```php
-    public function getParticipantDetailsAttribute()
-    {
-        return [
-            'name' => $this->someValue,
-            'foo' => 'bar',
-        ];
-    }
-```
+However, you can update the user model in `musonza_chat.php` published in the `config` folder.
 
 #### Creating a conversation
-You can start a conversation by passing an array of Models as participants
-
 ```php
-$participants = [$model1, $model2,..., $modelN];
+$participants = [$userId, $userId2,...];
 
 $conversation = Chat::createConversation($participants);
 ```
 
 #### Creating a conversation of type private / public
-You may want to classify conversations as private or public
-
 ```php
-$participants = [$model1, $model2,..., $modelN];
+$participants = [$userId, $userId2,...];
 
 // Create a private conversation
 $conversation = Chat::createConversation($participants)->makePrivate();
 
 // Create a public conversation
 $conversation = Chat::createConversation($participants)->makePrivate(false);
-
-// Create a direct message
-
-// Make direct conversation after creation
-$conversation = Chat::createConversation($participants)->makeDirect();
-
-// Specify intent for direct conversation before creation
-$conversation = Chat::makeDirect()->createConversation($participants);
 ```
-
-> **Note:** You will not be able to add additional participants to a direct conversation. 
-Additionally you can't remove a participant from a direct conversation.
 
 #### Get a conversation by id
 ```php
@@ -170,7 +150,7 @@ $conversation->update(['data' => $data]);
 
 ```php
 $message = Chat::message('Hello')
-            ->from($model)
+            ->from($user)
             ->to($conversation)
             ->send();
 ```
@@ -181,7 +161,7 @@ The default message type is `text`. If you want to specify custom type you can c
 ```php
 $message = Chat::message('http://example.com/img')
 		->type('image')
-		->from($model)
+		->from($user)
 		->to($conversation)
 		->send();
 ```
@@ -192,137 +172,145 @@ $message = Chat::message('http://example.com/img')
 $message = Chat::messages()->getById($id);
 ```
 
-### Get message sender
-
-```php
-$sendModel = $message->sender;
-```
 
 #### Mark a message as read
 
 ```php
-Chat::message($message)->setParticipant($participantModel)->markRead();
+Chat::message($message)->setUser($user)->markRead();
 ```
 
 #### Flag / mark a message
 
 ```php
-Chat::message($message)->setParticipant($participantModel)->toggleFlag();
+Chat::message($message)->setUser($user)->toggleFlag();
 
-Chat::message($message)->setParticipant($participantModel)->flagged(); // true
+Chat::message($message)->setUser($user)->flagged(); // true
 ```
 
 #### Mark whole conversation as read
 
 ```php
-Chat::conversation($conversation)->setParticipant($participantModel)->readAll();
+Chat::conversation($conversation)->setUser($user)->readAll();
 ```
 
 #### Unread messages count
 
 ```php
-$unreadCount = Chat::messages()->setParticipant($participantModel)->unreadCount();
+$unreadCount = Chat::messages()->setUser($user)->unreadCount();
 ```
 
 #### Unread messages count per Conversation
 
 ```php
-Chat::conversation($conversation)->setParticipant($participantModel)->unreadCount();
+Chat::conversation($conversation)->setUser($user)->unreadCount();
 ```
 
 #### Delete a message
 
 ```php
-Chat::message($message)->setParticipant($participantModel)->delete();
+Chat::message($message)->setUser($user)->delete();
 ```
-
-#### Cleanup Deleted Messages
-
-What to cleanup when all participants have deleted a `$message` or `$conversation`?
-
-Listen for `\Musonza\Chat\Eventing\AllParticipantsDeletedMessage` and 
-
-`\Musonza\Chat\Eventing\AllParticipantsClearedConversation`
 
 #### Clear a conversation
 
 ```php
-Chat::conversation($conversation)->setParticipant($participantModel)->clear();
+Chat::conversation($conversation)->setUser($user)->clear();
 ```
 
-#### Get participant conversations
+#### Get a conversation between two users
 
 ```php
-Chat::conversations()->setPaginationParams(['sorting' => 'desc'])
-	->setParticipant($participantModel)
-	->limit(1)
-	->page(1)
-	->get();
+$conversation = Chat::conversations()->between($user1, $user2);
 ```
 
-#### Get a conversation between two participants
+#### Get common conversations among users
 
 ```php
-$conversation = Chat::conversations()->between($participantModel1, $participantModel2);
+$conversations = Chat::conversations()->common($users);
 ```
+`$users` can be an array of user ids ex. `[1,4,6]` or a collection `(\Illuminate\Database\Eloquent\Collection)` of users
 
-#### Get common conversations among participants
-
-```php
-$conversations = Chat::conversations()->common($participants);
-```
-`$participants` is an array of participant Models
-
-#### Remove participants from a conversation
+#### Remove users from a conversation
 
 ```php
 /* removing one user */
-Chat::conversation($conversation)->removeParticipants([$participantModel]);
+Chat::conversation($conversation)->removeParticipants($user);
 ```
 
 ```php
-/* removing multiple participants */
-Chat::conversation($conversation)->removeParticipants([$participantModel, $participantModel2,...,$participantModelN]);
+/* removing multiple users */
+Chat::conversation($conversation)->removeParticipants([$user1, $user2, $user3,...,$userN]);
 ```
 
-#### Add participants to a conversation
+#### Add users to a conversation
 
 ```php
 /* add one user */
-Chat::conversation($conversation)->addParticipants([$participantModel]);
+Chat::conversation($conversation)->addParticipants($user);
 ```
 
 ```php
-/* add multiple participants */
-Chat::conversation($conversation)->addParticipants([$participantModel, $participantModel2]);
+/* add multiple users */
+Chat::conversation($conversation)->addParticipants([$user3, $user4]);
 ```
+
+<b>Note:</b> By default, a third user will classify the conversation as not private if it was. See config on how to change this.
+
 
 #### Get messages in a conversation
 
 ```php
-Chat::conversation($conversation)->setParticipant($participantModel)->getMessages()
+Chat::conversation($conversation)->setUser($user)->getMessages()
 ```
 
 #### Get user conversations by type
 
 ```php
 // private conversations
-$conversations = Chat::conversations()->setParticipant($participantModel)->isPrivate()->get();
+$conversations = Chat::conversations()->setUser($user)->isPrivate()->get();
 
 // public conversations
-$conversations = Chat::conversations()->setParticipant($participantModel)->isPrivate(false)->get();
-
-// direct conversations / messages
-$conversations = Chat::conversations()->setParticipant($participantModel)->isDirect()->get();
+$conversations = Chat::conversations()->setUser($user)->isPrivate(false)->get();
 
 // all conversations
-$conversations = Chat::conversations()->setParticipant($participantModel)->get();
+$conversations = Chat::conversations()->setUser($user)->get();
 ```
 
 #### Get recent messages
 
 ```php
-$messages = Chat::conversations()->setParticipant($participantModel)->limit(25)->page(1)->get();
+$messages = Chat::conversations()->setUser($user)->limit(25)->page(1)->get();
+```
+
+Example
+
+```
+[
+      "id" => 1
+      "private" => "1"
+      "data" => []
+      "created_at" => "2018-06-02 21:35:52"
+      "updated_at" => "2018-06-02 21:35:52"
+      "last_message" => array:13 [
+        "id" => 2
+        "message_id" => "2"
+        "conversation_id" => "1"
+        "user_id" => "1"
+        "is_seen" => "1"
+        "is_sender" => "1"
+        "flagged" => false
+        "created_at" => "2018-06-02 21:35:52"
+        "updated_at" => "2018-06-02 21:35:52"
+        "deleted_at" => null
+        "body" => "Hello 2"
+        "type" => "text"
+        "sender" => array:7 [
+          "id" => 1
+          "name" => "Jalyn Ernser"
+          "email" => "colt.howell@example.com"
+        ]
+      ]
+    ]
 ```
 
 #### Pagination
@@ -330,7 +318,7 @@ $messages = Chat::conversations()->setParticipant($participantModel)->limit(25)-
 There are a few ways you can achieve pagination
 You can specify the `limit` and `page` as above using the respective functions or as below:
 ```
-   $paginated = Chat::conversations()->setParticipant($participant)
+   $paginated = Chat::conversations()->setUser($user)
             ->setPaginationParams([
                 'page' => 3,
                 'perPage' => 10,
@@ -347,49 +335,11 @@ You don't have to specify all the parameters. If you leave the parameters out, d
 To get the `conversations` simply call `$paginated->items()`
 
 
-#### Get participants in a conversation
+#### Get users in a conversation
 
 ```php
-$participants = $conversation->getParticipants();
+$users = $conversation->users;
 ```
-
-#### Get participation entry for a Model in a conversation
-
-```php
-Chat::conversation($conversation)->getParticipation($model);
-```
-
-#### Update participation settings
-
-Set Conversation settings for participant (example: mute_mentions, mute_conversation)
-
-```php
-$settings = ['mute_mentions' => true];
-
-Chat::conversation($conversation)
-    ->getParticipation($this->alpha)
-    ->update(['settings' => $settings]);
-```
-
-#### Data Transformers
-
-Need to have more control on the data returned from the package routes? You can 
-specify your own Model transformers and take advantage of [Fractal](http://fractal.thephpleague.com/).
-
-All you need to do is specify the location of your transformers in the configuration
-file `musonza_chat.php` as follows:
-
-```php
-/**
- * Model Transformers
- */
-'transformers' => [
-    'conversation' => \MyApp\Transformers\ConversationTransformer::class,
-    'message' => \MyApp\Transformers\MessageTransformer::class,
-    'participant' => \MyApp\Transformers\ParticipantTransformer::class,
-]
-```
-> **Note:** This only applies to responses from package routes. 
 
 ## License
 
